@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Babylon.js AR-lite Tap Placement</title>
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    video { object-fit: cover; z-index: -1; } /* camera feed behind */
+    canvas { z-index: 0; } /* 3D on top */
+  </style>
+</head>
+<body>
+  <video id="cameraFeed" autoplay playsinline></video>
+  <canvas id="renderCanvas"></canvas>
+  <script>
+    const video = document.getElementById("cameraFeed");
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+
+    // Start phone camera
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => { alert("Camera access denied: " + err); });
+
+    // Scene setup
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // transparent background
+
+    // Camera follows phone orientation
+    const camera = new BABYLON.DeviceOrientationCamera("DevOrCamera", new BABYLON.Vector3(0, 1, -5), scene);
+    camera.attachControl(canvas, true);
+
+    // Light
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+    // Function to spawn cylinders
+    function spawnCylinder() {
+      const forward = camera.getDirection(BABYLON.Axis.Z); // direction phone is pointing
+      const cylinder = BABYLON.MeshBuilder.CreateCylinder("cylinder", { 
+        height: 1, 
+        diameterTop: 0.5, 
+        diameterBottom: 0.5 
+      }, scene);
+      cylinder.position = camera.position.add(forward.scale(5)); // place 5 units ahead
+      cylinder.rotation.x = Math.random() * Math.PI;
+      cylinder.rotation.y = Math.random() * Math.PI;
+      return cylinder;
+    }
+
+    // Tap to add cylinder
+    canvas.addEventListener("click", () => {
+      spawnCylinder();
+    });
+
+    // Render loop
+    engine.runRenderLoop(() => {
+      scene.meshes.forEach(m => {
+        if (m.name.startsWith("cylinder")) {
+          m.rotation.y += 0.01; // spin cylinders
+        }
+      });
+      scene.render();
+    });
+
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>
