@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Babylon.js — Rokid Air VR/AR Demo</title>
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    #renderCanvas { width: 100%; height: 100%; touch-action: none; }
+    .hint { position: absolute; left: 12px; top: 12px; background: rgba(0,0,0,0.45); color: white; padding: 8px 10px; border-radius: 6px; font-family: sans-serif; font-size: 13px; }
+    .center-btn { position: absolute; right: 12px; top: 12px; z-index: 5; }
+    button { padding: 10px 14px; font-size: 14px; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+  <div class="hint">Use the VR button for immersive VR on Rokid Air or Cardboard. Use the AR button if supported. Tap to spawn a glowing ring where you look.</div>
+  <div class="center-btn">
+    <button id="enter-vr">Enter VR</button>
+    <button id="enter-ar">Enter AR (if supported)</button>
+  </div>
+
+  <script>
+    (async function() {
+      const canvas = document.getElementById('renderCanvas');
+      const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+
+      const createScene = function() {
+        const scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.07, 1);
+
+        // Ground
+        const ground = BABYLON.MeshBuilder.CreateGround('ground', {width:80, height:80}, scene);
+        const groundMat = new BABYLON.StandardMaterial('gndMat', scene);
+        groundMat.diffuseColor = new BABYLON.Color3(0.12, 0.12, 0.13);
+        ground.material = groundMat;
+
+        // Light
+        const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
+        hemi.intensity = 0.9;
+
+        // Torus centerpiece
+        const torus = BABYLON.MeshBuilder.CreateTorus('torus', {thickness:0.6, diameter:4}, scene);
+        torus.position = new BABYLON.Vector3(0, 2, 4);
+        const torusMat = new BABYLON.StandardMaterial('tMat', scene);
+        torusMat.emissiveColor = new BABYLON.Color3(0.12, 0.6, 1.0);
+        torus.material = torusMat;
+
+        // Orbiting sphere
+        const orb = BABYLON.MeshBuilder.CreateSphere('orb', {diameter:0.6}, scene);
+        orb.position = new BABYLON.Vector3(3, 2.6, 4);
+        const orbMat = new BABYLON.StandardMaterial('oMat', scene);
+        orbMat.emissiveColor = new BABYLON.Color3(1.0, 0.6, 0.12);
+        orb.material = orbMat;
+
+        // Floating boxes
+        for (let i=0;i<8;i++){
+          const box = BABYLON.MeshBuilder.CreateBox('box'+i, {size:0.8}, scene);
+          const a = (i / 8) * Math.PI * 2;
+          box.position = new BABYLON.Vector3(Math.cos(a)*6, 1.2 + Math.sin(a*2)*0.6, 4 + Math.sin(a)*6);
+          box.rotation.y = a;
+        }
+
+        // Fallback camera for desktop
+        const cam = new BABYLON.ArcRotateCamera('arcCam', -Math.PI/2, Math.PI/3, 15, new BABYLON.Vector3(0,1.5,4), scene);
+        cam.attachControl(canvas, true);
+
+        // GUI label
+        const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+        const label = new BABYLON.GUI.TextBlock();
+        label.text = 'Babylon.js — Rokid Air VR/AR Demo';
+        label.color = 'white';
+        label.fontSize = 18;
+        label.top = '10px';
+        label.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        label.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        advancedTexture.addControl(label);
+
+        // Animate torus and orb
+        scene.registerBeforeRender(function() {
+          const t = performance.now() * 0.001;
+          torus.rotation.x = t * 0.3;
+          torus.rotation.y = t * 0.5;
+          orb.position.x = 3 * Math.cos(t * 1.2);
+          orb.position.z = 4 + 3 * Math.sin(t * 1.2);
+        });
+
+        return { scene, ground };
+      };
+
+      const { scene, ground } = createScene();
+
+      let xr = null;
+      try {
+        xr = await scene.createDefaultXRExperienceAsync({ floorMeshes: [ground] });
+      } catch (e) {
+        console.warn('WebXR not available:', e);
+        xr = null;
+      }
+
+      // Reticle for gaze
+      const reticle = BABYLON.MeshBuilder.CreateDisc('reticle', {radius: 0.15, tessellation: 32}, scene);
+      reticle.rotation.x = Math.PI / 2;
+      reticle.isPickable = false;
+      const retMat = new BABYLON.StandardMaterial('rMat', scene);
+      retMat.emissiveColor = new BABYLON.Color3(0.9, 0.9, 0.2);
+      reticle.material = retMat;
+
+      const updateReticle = () => {
+        const cam = scene.activeCamera;
+        if (!cam) return;
+        const origin = cam.position;
+        const forward = cam.getForwardRay ? cam.getForwardRay().direction : new BABYLON.Vector3(0,0,1);
+        const ray = new BABYLON.Ray(origin, forward, 100);
+        const pick = scene.pickWithRay(ray, (mesh) => mesh === ground || mesh.name.startsWith('box') || mesh === torus || mesh === orb);
+        if (pick && pick.hit) {
+          reticle.position.copyFrom(pick.pickedPoint);
+          reticle.isVisible = true;
+          reticle.position.y += 0.01;
+        } else {
+          const frontPos = origin.add(forward.scale(6));
+          reticle.position.copyFrom(frontPos);
+          reticle.isVisible = true;
+        }
+      };
+
+      scene.onBeforeRenderObservable.add(updateReticle);
+
+      // Spawn ring on tap
+      function spawnRing(position){
+        const ring = BABYLON.MeshBuilder.CreateTorus('ring', {thickness:0.08, diameter:1.0}, scene);
+        ring.position = position.clone();
+        ring.position.y += 0.05;
+        const mat = new BABYLON.StandardMaterial('rm', scene);
+        mat.emissiveColor = new BABYLON.Color3(Math.random(), Math.random(), Math.random());
+        ring.material = mat;
+        let life = 0;
+        const up = scene.onBeforeRenderObservable.add(() => {
+          life += engine.getDeltaTime() * 0.001;
+          ring.scaling = new BABYLON.Vector3(1 + life*2, 1 + life*2, 1 + life*2);
+          ring.rotation.y += 0.05;
+          mat.emissiveColor.scaleInPlace(0.995);
+          if (life > 1.5) {
+            ring.dispose();
+            scene.onBeforeRenderObservable.removeCallback(up);
+          }
+        });
+      }
+
+      canvas.addEventListener('pointerdown', () => {
+        spawnRing(reticle.position);
+      });
+
+      // VR and AR buttons
+      const enterVrBtn = document.getElementById('enter-vr');
+      const enterArBtn = document.getElementById('enter-ar');
+
+      enterVrBtn.addEventListener('click', async () => {
+        if (xr && xr.baseExperience) {
+          try {
+            await xr.baseExperience.enterXRAsync('immersive-vr', 'local-floor');
+          } catch (err) {
+            console.warn('Failed to enter VR:', err);
+            if (document.fullscreenEnabled) await canvas.requestFullscreen();
+          }
+        } else {
+          const devCam = new BABYLON.DeviceOrientationCamera('devcam', new BABYLON.Vector3(0,1.6,0), scene);
+          scene.activeCamera = devCam;
+          devCam.attachControl(canvas, true);
+          if (document.fullscreenEnabled) await canvas.requestFullscreen();
+        }
+      });
+
+      enterArBtn.addEventListener('click', async () => {
+        if (xr && xr.baseExperience) {
+          try {
+            await xr.baseExperience.enterXRAsync('immersive-ar', 'local-floor');
+          } catch (err) {
+            console.warn('AR not available:', err);
+            alert('AR mode not supported on this device/browser.');
+          }
+        } else {
+          alert('XR not available on this device/browser.');
+        }
+      });
+
+      engine.runRenderLoop(function() {
+        scene.render();
+      });
+
+      window.addEventListener('resize', function(){ engine.resize(); });
+
+      console.log('Rokid Air VR/AR demo ready. Use a WebXR-capable browser, then tap VR or AR.');
+    })();
+  </script>
+</body>
+</html>
