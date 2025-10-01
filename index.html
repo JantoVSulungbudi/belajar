@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Babylon.js AR-lite Tap Placement</title>
+  <title>Babylon.js AR-lite Tap Placement – FCC</title>
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <style>
     html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
@@ -28,39 +28,51 @@
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // transparent background
 
-    // Camera follows phone orientation
+    // Camera
     const camera = new BABYLON.DeviceOrientationCamera("DevOrCamera", new BABYLON.Vector3(0, 1, -5), scene);
     camera.attachControl(canvas, true);
 
     // Light
     const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+    light.intensity = 1.2;
 
-    // Function to spawn cylinders
-    function spawnCylinder() {
-      const forward = camera.getDirection(BABYLON.Axis.Z); // direction phone is pointing
-      const cylinder = BABYLON.MeshBuilder.CreateCylinder("cylinder", { 
-        height: 1, 
-        diameterTop: 0.5, 
-        diameterBottom: 0.5 
-      }, scene);
-      cylinder.position = camera.position.add(forward.scale(5)); // place 5 units ahead
-      cylinder.rotation.x = Math.random() * Math.PI;
-      cylinder.rotation.y = Math.random() * Math.PI;
-      return cylinder;
+    // Material for atoms
+    const atomMaterial = new BABYLON.StandardMaterial("atomMat", scene);
+    atomMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.6, 1.0);
+    atomMaterial.specularColor = new BABYLON.Color3(1,1,1);
+
+    // Spawn a face-centered cubic unit cell
+    function spawnFCC() {
+      const forward = camera.getDirection(BABYLON.Axis.Z);
+      const cellCenter = camera.position.add(forward.scale(5));
+
+      const a = 1.0;               // lattice parameter
+      const r = 0.15 * a;          // sphere radius
+
+      // FCC positions: 8 corners + 6 face centers
+      const positions = [
+        // corners
+        [0,0,0],[a,0,0],[0,a,0],[0,0,a],
+        [a,a,0],[a,0,a],[0,a,a],[a,a,a],
+        // face centers
+        [a/2,a/2,0],[a/2,0,a/2],[0,a/2,a/2],
+        [a/2,a/2,a],[a/2,a,a/2],[a,a/2,a/2]
+      ];
+
+      positions.forEach((p,i) => {
+        const sphere = BABYLON.MeshBuilder.CreateSphere("fcc_atom"+i, {diameter:2*r}, scene);
+        sphere.position = new BABYLON.Vector3(p[0], p[1], p[2]).add(cellCenter);
+        sphere.material = atomMaterial;
+      });
     }
 
-    // Tap to add cylinder
+    // Tap to add FCC cell
     canvas.addEventListener("click", () => {
-      spawnCylinder();
+      spawnFCC();
     });
 
     // Render loop
     engine.runRenderLoop(() => {
-      scene.meshes.forEach(m => {
-        if (m.name.startsWith("cylinder")) {
-          m.rotation.y += 0.01; // spin cylinders
-        }
-      });
       scene.render();
     });
 
