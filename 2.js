@@ -27,7 +27,7 @@ const createScene = () => {
   for (let i = 0; i < 2; i++) {
     for (let j = 0; j < 2; j++) {
       
-      const sphere = BABYLON.MeshBuilder.CreateSphere(`sphere${i}`, 
+      const sphere = BABYLON.MeshBuilder.CreateSphere(`sphere${i}{j}`, 
         { diameter: 1 }, scene);
       sphere.position.x = i * 2; // Positioning spheres on the X-axis
       sphere.position.y = j * 2; // Modified *****
