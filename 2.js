@@ -21,7 +21,7 @@ const createScene = () => {
   redMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0);
 
   const blueMaterial = new BABYLON.StandardMaterial("blueMat", scene);
-  blueMaterial.diffuseColor = new BABYLON.Color3(0, 0, 1);
+  blueMaterial.diffuseColor = new BABYLON.Color3(1, 1, 0);
 
   // Create a loop to generate multiple spheres
   for (let i = 0; i < 2; i++) {
