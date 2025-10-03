@@ -48,7 +48,7 @@ canvas.addEventListener("click", () => {
     BABYLON.SceneLoader.ImportMesh("", "scenes/", "skull.babylon", scene, (meshes) => {
         const skull = meshes[0];
         skull.position = placePos;
-        skull.scaling = new BABYLON.Vector3(0.05, 0.05, 0.05); // adjust size as needed
+        skull.scaling = new BABYLON.Vector3(0.02, 0.02, 0.02); // adjust size as needed
         skull.rotation.y = Math.PI; // adjust orientation if required
 
         // slow rotation to show it’s loaded
@@ -71,3 +71,4 @@ window.addEventListener("resize", () => engine.resize());
 </script>
 </body>
 </html>
+
