@@ -66,7 +66,7 @@ BABYLON.SceneLoader.ImportMesh("", "scenes/", "skull.babylon", scene, function (
         skull.metadata = { rotate: true, speed: 0.002 };
     });
 //});
-
+*/
 // Rotate any placed skulls
 scene.onBeforeRenderObservable.add(() => {
     scene.meshes.forEach(mesh => {
@@ -75,13 +75,14 @@ scene.onBeforeRenderObservable.add(() => {
         }
     });
 });
-*/
+
 // ---- Render loop ----
 engine.runRenderLoop(() => { scene.render(); });
 window.addEventListener("resize", () => engine.resize());
 </script>
 </body>
 </html>
+
 
 
 
