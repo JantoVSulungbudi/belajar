@@ -40,7 +40,9 @@ camera.attachControl(canvas, true);
 // Basic light
 const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
 light.intensity = 1.2;
-BABYLON.SceneLoader.ImportMesh("", "scenes/", "skull.babylon", scene, (meshes) => {
+BABYLON.ImportMeshAsync("scenes/skull.babylon", scene, { meshNames: ""}).then(function(result) {
+    result.meshes[0].scaling = new BABYLON.Vector3(0.1, 0.1, 0.1);
+});
     const skull = meshes[0];
     skull.position = placePos;
     skull.scaling = new BABYLON.Vector3(0.02, 0.02, 0.02); // adjust size as needed
@@ -79,6 +81,7 @@ window.addEventListener("resize", () => engine.resize());
 </script>
 </body>
 </html>
+
 
 
 
