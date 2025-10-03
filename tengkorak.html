@@ -40,9 +40,9 @@ camera.attachControl(canvas, true);
 // Basic light
 const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
 light.intensity = 1.2;
-BABYLON.ImportMeshAsync("scenes/skull.babylon", scene, { meshNames: ""}).then(function(result) {
-    result.meshes[0].scaling = new BABYLON.Vector3(0.1, 0.1, 0.1);
-});
+BABYLON.ImportMeshAsync("scenes/skull.babylon", scene); //, { meshNames: ""}).then(function(result) {
+    //result.meshes[0].scaling = new BABYLON.Vector3(0.1, 0.1, 0.1);
+//});
   
 /*
 // Tap to place the skull in front of the camera
@@ -76,6 +76,7 @@ window.addEventListener("resize", () => engine.resize());
 </script>
 </body>
 </html>
+
 
 
 
