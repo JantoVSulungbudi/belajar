@@ -33,19 +33,21 @@ const scene = new BABYLON.Scene(engine);
 scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);   // transparent so camera shows through
 
 // Device orientation camera for AR-lite style
-//const camera = new BABYLON.DeviceOrientationCamera("DevOrCam", new BABYLON.Vector3(0, 1, -5), scene);
-//camera.attachControl(canvas, true);
-
-  
+//const camera = new BABYLON.DeviceOrientationCamera("DevOrCam", new BABYLON.Vector3(0, 1, -5), scene); 
 var camera = new BABYLON.ArcRotateCamera("camera", BABYLON.Tools.ToRadians(0), BABYLON.Tools.ToRadians(57.3), 10, BABYLON.Vector3.Zero(), scene);
 camera.attachControl(canvas, true);
-camera.attachControl(canvas, true);
-
 
 // Basic light
 const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
 light.intensity = 1.2;
-
+BABYLON.SceneLoader.ImportMesh("", "scenes/", "skull.babylon", scene, (meshes) => {
+    const skull = meshes[0];
+    skull.position = placePos;
+    skull.scaling = new BABYLON.Vector3(0.02, 0.02, 0.02); // adjust size as needed
+    skull.rotation.y = Math.PI; // adjust orientation if required
+});
+  
+/*
 // Tap to place the skull in front of the camera
 canvas.addEventListener("click", () => {
     const forward = camera.getDirection(BABYLON.Axis.Z);
@@ -70,12 +72,13 @@ scene.onBeforeRenderObservable.add(() => {
         }
     });
 });
-
+*/
 // ---- Render loop ----
 engine.runRenderLoop(() => { scene.render(); });
 window.addEventListener("resize", () => engine.resize());
 </script>
 </body>
 </html>
+
 
 
