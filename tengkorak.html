@@ -1,120 +1,73 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-    <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<head>
+<meta charset="UTF-8">
+<title>Babylon.js AR-lite Skull Placement</title>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
 
-        <title>Babylon.js sample code</title>
+<style>
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  video { object-fit: cover; z-index: -1; }
+  canvas { z-index: 0; }
+</style>
+</head>
 
-        <!-- Babylon.js -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
-        <script src="https://assets.babylonjs.com/generated/Assets.js"></script>
-        <script src="https://cdn.babylonjs.com/recast.js"></script>
-        <script src="https://cdn.babylonjs.com/ammo.js"></script>
-        <script src="https://cdn.babylonjs.com/havok/HavokPhysics_umd.js"></script>
-        <script src="https://cdn.babylonjs.com/cannon.js"></script>
-        <script src="https://cdn.babylonjs.com/Oimo.js"></script>
-        <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
-        <script src="https://cdn.babylonjs.com/babylon.js"></script>
-        <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
-        <script src="https://cdn.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
-        <script src="https://cdn.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
-        <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.js"></script>
-        <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
-        <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-        <script src="https://cdn.babylonjs.com/addons/babylonjs.addons.min.js"></script>
-        <script src="https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+<body>
+  <video id="cameraFeed" autoplay playsinline></video>
+  <canvas id="renderCanvas"></canvas>
 
-        <style>
-            html,
-            body {
-                overflow: hidden;
-                width: 100%;
-                height: 100%;
-                margin: 0;
-                padding: 0;
-            }
+<script>
+const video = document.getElementById("cameraFeed");
+const canvas = document.getElementById("renderCanvas");
+const engine = new BABYLON.Engine(canvas, true);
 
-            #renderCanvas {
-                width: 100%;
-                height: 100%;
-                touch-action: none;
-            }
+// ---- Start phone camera for background ----
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+  .then(stream => { video.srcObject = stream; })
+  .catch(err => { alert("Camera access denied: " + err); });
 
-            #canvasZone {
-                width: 100%;
-                height: 100%;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="canvasZone"><canvas id="renderCanvas"></canvas></div>
-        <script>
-                    var canvas = document.getElementById("renderCanvas");
+// ---- Scene setup ----
+const scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);   // transparent so camera shows through
 
-                    var startRenderLoop = function (engine, canvas) {
-                        engine.runRenderLoop(function () {
-                            if (sceneToRender && sceneToRender.activeCamera) {
-                                sceneToRender.render();
-                            }
-                        });
-                    }
+// Device orientation camera for AR-lite style
+const camera = new BABYLON.DeviceOrientationCamera("DevOrCam", new BABYLON.Vector3(0, 1, -5), scene);
+camera.attachControl(canvas, true);
 
-                    var engine = null;
-        var scene = null;
-        var sceneToRender = null;
-        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
-        var createScene = function () {
-            var scene = new BABYLON.Scene(engine);
-        
-            //Adding a light
-            var light = new BABYLON.PointLight("Omni", new BABYLON.Vector3(20, 20, 100), scene);
-        
-            //Adding an Arc Rotate Camera
-            var camera = new BABYLON.ArcRotateCamera("Camera", 0, 0.8, 100, BABYLON.Vector3.Zero(), scene);
-            camera.attachControl(canvas, false);
-        
-            // The first parameter can be used to specify which mesh to import. Here we import all meshes
-            BABYLON.SceneLoader.ImportMesh("", "scenes/", "skull.babylon", scene, function (newMeshes) {
-                // Set the target of the camera to the first imported mesh
-                camera.target = newMeshes[0];
-            });
-        
-            // Move the light with the camera
-            scene.registerBeforeRender(function () {
-                light.position = camera.position;
-            });
-        
-            return scene;
+// Basic light
+const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+light.intensity = 1.2;
+
+// Tap to place the skull in front of the camera
+canvas.addEventListener("click", () => {
+    const forward = camera.getDirection(BABYLON.Axis.Z);
+    const placePos = camera.position.add(forward.scale(3));  // 3 units ahead
+
+    BABYLON.SceneLoader.ImportMesh("", "scenes/", "skull.babylon", scene, (meshes) => {
+        const skull = meshes[0];
+        skull.position = placePos;
+        skull.scaling = new BABYLON.Vector3(0.05, 0.05, 0.05); // adjust size as needed
+        skull.rotation.y = Math.PI; // adjust orientation if required
+
+        // slow rotation to show it’s loaded
+        skull.metadata = { rotate: true, speed: 0.005 };
+    });
+});
+
+// Rotate any placed skulls
+scene.onBeforeRenderObservable.add(() => {
+    scene.meshes.forEach(mesh => {
+        if (mesh.metadata && mesh.metadata.rotate) {
+            mesh.addRotation(0, mesh.metadata.speed, 0);
         }
-                window.initFunction = async function() {
-                    
-                    
-                    
-                    var asyncEngineCreation = async function() {
-                        try {
-                        return createDefaultEngine();
-                        } catch(e) {
-                        console.log("the available createEngine function failed. Creating the default engine instead");
-                        return createDefaultEngine();
-                        }
-                    }
+    });
+});
 
-                    window.engine = await asyncEngineCreation();
-                    
-                    const engineOptions = window.engine.getCreationOptions?.();
-                    if (!engineOptions || engineOptions.audioEngine !== false) {
-                        
-                    }
-        if (!engine) throw 'engine should not be null.';
-        startRenderLoop(engine, canvas);
-        window.scene = createScene();};
-        initFunction().then(() => {sceneToRender = scene
-                    });
-
-                    // Resize
-                    window.addEventListener("resize", function () {
-                        engine.resize();
-                    });
-        </script>
-    </body>
+// ---- Render loop ----
+engine.runRenderLoop(() => { scene.render(); });
+window.addEventListener("resize", () => engine.resize());
+</script>
+</body>
 </html>
