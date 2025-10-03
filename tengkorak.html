@@ -33,8 +33,14 @@ const scene = new BABYLON.Scene(engine);
 scene.clearColor = new BABYLON.Color4(0, 0, 0, 0);   // transparent so camera shows through
 
 // Device orientation camera for AR-lite style
-const camera = new BABYLON.DeviceOrientationCamera("DevOrCam", new BABYLON.Vector3(0, 1, -5), scene);
+//const camera = new BABYLON.DeviceOrientationCamera("DevOrCam", new BABYLON.Vector3(0, 1, -5), scene);
+//camera.attachControl(canvas, true);
+
+  
+var camera = new BABYLON.ArcRotateCamera("camera", BABYLON.Tools.ToRadians(0), BABYLON.Tools.ToRadians(57.3), 10, BABYLON.Vector3.Zero(), scene);
 camera.attachControl(canvas, true);
+camera.attachControl(canvas, true);
+
 
 // Basic light
 const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
@@ -52,7 +58,7 @@ canvas.addEventListener("click", () => {
         skull.rotation.y = Math.PI; // adjust orientation if required
 
         // slow rotation to show it’s loaded
-        skull.metadata = { rotate: true, speed: 0.005 };
+        skull.metadata = { rotate: true, speed: 0.002 };
     });
 });
 
@@ -71,4 +77,5 @@ window.addEventListener("resize", () => engine.resize());
 </script>
 </body>
 </html>
+
 
