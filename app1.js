@@ -61,7 +61,7 @@ var createScene = function () {
 var scene = createScene();
 
 // Set initial position for animation
-var animationSpeed = 0.001; // Speed of the movement
+var animationSpeed = 0.03; // Speed of the movement
 
 // Render loop with mesh animation
 engine.runRenderLoop(function () {
