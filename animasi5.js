@@ -33,7 +33,7 @@ var createScene = function () {
 
   // Cube
   var cube = BABYLON.MeshBuilder.CreateBox("cube", { size: 1, height: 3 }, scene);
-  cube.position = new BABYLON.Vector3(1, 1.5, 0);
+  cube.position = new BABYLON.Vector3(1, 1.5, 1);
   cube.material = mat2;
 
   // === Load the Heart model instead of sphere ===
