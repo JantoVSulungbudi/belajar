@@ -70,6 +70,9 @@ engine.runRenderLoop(function () {
   // Animate merged mesh movement upwards
   var mergedMesh = scene.getMeshByName("mergedMesh");  // Get the merged mesh by name
   if (mergedMesh) {
+    if ((mergedMesh.position.y > 2) || (mergedMesh.position.y < 1)) {
+      animationSpeed *= -1;
+    }
     mergedMesh.position.y += animationSpeed;  // Move the merged mesh upwards
   }
 });
