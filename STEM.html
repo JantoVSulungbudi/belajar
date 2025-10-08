@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FUN-STEM</title>
+<style>
+  body { font-family: sans-serif; margin:0; padding:0; height:90vh; display:flex; flex-direction:column; }
+  header { padding:1rem; text-align:center; }
+  button { font-size:1.2rem; padding:.6rem 1.2rem; margin:.25rem; }
+
+  #status { margin-top:.5rem; }
+
+  #controls {
+    flex:1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+  }
+
+  /* D-pad layout */
+  .dpad {
+    display:grid;
+    grid-template-rows: repeat(3,auto);
+    grid-template-columns: repeat(3,auto);
+    justify-items:center;
+    align-items:center;
+    gap:0.5rem;
+  }
+  .dpad button { width:120px; height:60px; font-size:1.1rem; }
+
+  .dpad .maju { grid-column:2; grid-row:1; }
+  .dpad .kiri { grid-column:1; grid-row:2; }
+  .dpad .kanan{ grid-column:3; grid-row:2; }
+  .dpad .mundur{ grid-column:2; grid-row:3; }
+
+  /* slider at bottom center */
+  footer {
+    padding:1rem;
+    text-align:center;
+    background:#f0f0f0;
+  }
+  input[type=range] {
+    width:300px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button id="connectBtn">Connect</button>
+  <div id="status">Not connected</div>
+</header>
+
+<div id="controls" style="display:none;">
+  <div class="dpad">
+    <button class="maju" id="btnF">Maju</button>
+    <button class="kiri" id="btnL">Kiri</button>
+    <button class="kanan" id="btnR">Kanan</button>
+    <button class="mundur" id="btnB">Mundur</button>
+  </div>
+</div>
+
+<footer id="sliderArea" style="display:none;">
+  <label for="servoRange">Servo (0–180)</label><br>
+  <input id="servoRange" type="range" min="0" max="180" value="90"><br>
+  <span>Sudut: <span id="servoVal">90</span></span>
+</footer>
+
+<script>
+const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+const CHAR_UUID    = '12345678-1234-5678-1234-56789abcdef1';
+
+let device, server, writeChar;
+const enc = new TextEncoder();
+
+const connectBtn = document.getElementById('connectBtn');
+const statusEl   = document.getElementById('status');
+const controls   = document.getElementById('controls');
+const sliderArea = document.getElementById('sliderArea');
+
+// Toggle connect/disconnect
+connectBtn.addEventListener('click', async () => {
+  if (device && device.gatt.connected) {
+    device.gatt.disconnect();
+    return;
+  }
+
+  try {
+    statusEl.textContent = 'Requesting device...';
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'FUN-' }],
+      optionalServices: [SERVICE_UUID]
+    });
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+
+    statusEl.textContent = 'Connecting...';
+    server = await device.gatt.connect();
+
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    writeChar = await service.getCharacteristic(CHAR_UUID);
+
+    statusEl.textContent = `Connected to ${device.name || device.id}`;
+    controls.style.display = 'flex';
+    sliderArea.style.display = 'block';
+    connectBtn.textContent = 'Disconnect';
+  } catch(err) {
+    console.error(err);
+    statusEl.textContent = 'Connection failed: ' + err;
+  }
+});
+
+function onDisconnected() {
+  statusEl.textContent = 'Disconnected';
+  connectBtn.textContent = 'Connect';
+  controls.style.display = 'none';
+  sliderArea.style.display = 'none';
+}
+
+async function writeString(str) {
+  if (!writeChar) {
+    statusEl.textContent = 'Not connected to characteristic';
+    return;
+  }
+  try {
+    await writeChar.writeValue(enc.encode(str));
+    //statusEl.textContent = `Sent: "${str}"`;
+  } catch(err) {
+    console.error('Write failed', err);
+    statusEl.textContent = 'Write failed: ' + err;
+  }
+}
+
+// D-pad button actions
+document.getElementById('btnF').addEventListener('click', () => writeString('f'));
+document.getElementById('btnB').addEventListener('click', () => writeString('b'));
+document.getElementById('btnL').addEventListener('click', () => writeString('l'));
+document.getElementById('btnR').addEventListener('click', () => writeString('r'));
+
+// Slider sends on each move
+const servoRange = document.getElementById('servoRange');
+const servoVal   = document.getElementById('servoVal');
+
+servoRange.addEventListener('input', () => {
+  const val = servoRange.value;
+  servoVal.textContent = val;
+  writeString(String(val));
+});
+</script>
+</body>
+</html>
