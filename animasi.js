@@ -76,7 +76,8 @@ engine.runRenderLoop(function () {
     }
 
     mergedMesh.position.y += animationSpeed;  // Move the merged mesh upwards
-    mergedMesh.position.x += (Math.random()-0.5)/10;
+    mergedMesh.position.x += (Math.random()-0.5)/5;
+    mergedMesh.position.z += (Math.random()-0.5)/5;
   }
 });
 
