@@ -1,1 +1,48 @@
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const hands = new Hands({
+  locateFile: (file) =>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+});
+
+hands.setOptions({
+  maxNumHands: 2,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5,
+});
+
+hands.onResults(onResults);
+
+const camera = new Camera(video, {
+  onFrame: async () => {
+    await hands.send({ image: video });
+  },
+  width: 640,
+  height: 480,
+});
+camera.start();
+
+function onResults(results) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  if (!results.multiHandLandmarks) return;
+
+  for (const landmarks of results.multiHandLandmarks) {
+    // Draw landmarks
+    ctx.fillStyle = "rgba(0,255,0,0.8)";
+    landmarks.forEach((p) => {
+      ctx.fillRect(p.x * canvas.width - 2, p.y * canvas.height - 2, 4, 4);
+    });
+  }
+}
+</script>
 
