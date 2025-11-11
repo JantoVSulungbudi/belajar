@@ -6,8 +6,8 @@
 <title>Face → Metrics → BLE</title>
 <style>
   body{font-family:system-ui;margin:0;background:#111;color:#eee;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
-  .stage{position:relative;width:640px;max-width:90vw}
-  video, canvas{width:100%;height:auto;border-radius:12px;background:#000;position:absolute;top:0;left:0;}
+  .stage{position:relative;width:640px;max-width:90vw;height:480px;}
+  video, canvas{width:100%;height:100%;border-radius:12px;background:#000;position:absolute;top:0;left:0;}
   .card{background:#161616;padding:12px;border-radius:10px;display:flex;gap:12px;align-items:flex-start}
   .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   button{background:#2563eb;border:none;padding:8px 12px;border-radius:8px;color:white;cursor:pointer}
@@ -19,13 +19,14 @@
 <h2>Face → Metrics → BLE</h2>
 
 <div class="stage card">
-  <div style="flex:1;position:relative;height:480px;">
+  <div style="flex:1;position:relative;">
     <video id="input_video" autoplay playsinline muted></video>
     <canvas id="overlay"></canvas>
   </div>
 
   <div style="width:240px;display:flex;flex-direction:column;gap:8px">
     <div class="controls">
+      <label><input type="checkbox" id="showVideo" checked> Show Video</label>
       <label><input type="checkbox" id="showLandmarks" checked> Show Face Mesh</label>
     </div>
 
@@ -53,6 +54,7 @@
 const video=document.getElementById('input_video');
 const canvas=document.getElementById('overlay');
 const ctx=canvas.getContext('2d');
+const showVideo=document.getElementById('showVideo');
 const showLandmarks=document.getElementById('showLandmarks');
 const bleConnectBtn=document.getElementById('bleConnectBtn');
 const bleSendBtn=document.getElementById('bleSendBtn');
@@ -119,6 +121,10 @@ function onResults(results){
   canvas.width=video.videoWidth;
   canvas.height=video.videoHeight;
   ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(showVideo.checked){
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  }
 
   if(!results.multiFaceLandmarks?.length) return;
   const lm=results.multiFaceLandmarks[0];
