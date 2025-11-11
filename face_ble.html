@@ -1,205 +1,182 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Face → Number → BLE (Demo)</title>
-  <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;background:#111;color:#eee;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
-    .stage{position:relative;width:640px;max-width:90vw}
-    video, canvas{width:100%;height:auto;border-radius:12px;background:#000}
-    .controls{display:flex;gap:8px;align-items:center}
-    .card{background:#161616;padding:12px;border-radius:10px;display:flex;gap:12px;align-items:center}
-    button{background:#2563eb;border:none;padding:8px 12px;border-radius:8px;color:white;cursor:pointer}
-    button.secondary{background:#2a2a2a}
-    .bignum{font-size:36px;font-weight:700}
-    label{display:flex;gap:8px;align-items:center}
-    small{color:#aaa}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Face → Metrics → BLE</title>
+<style>
+  body{font-family:system-ui;margin:0;background:#111;color:#eee;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
+  .stage{position:relative;width:640px;max-width:90vw}
+  video, canvas{width:100%;height:auto;border-radius:12px;background:#000}
+  .card{background:#161616;padding:12px;border-radius:10px;display:flex;gap:12px;align-items:flex-start}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  button{background:#2563eb;border:none;padding:8px 12px;border-radius:8px;color:white;cursor:pointer}
+  button.secondary{background:#2a2a2a}
+  .metric{font-size:14px;color:#ccc}
+</style>
 </head>
 <body>
-  <h2>Face → Number → BLE (Demo)</h2>
-  <div class="stage card">
-    <div style="flex:1">
-      <div style="position:relative">
-        <video id="input_video" autoplay playsinline muted></video>
-        <canvas id="overlay"></canvas>
-      </div>
-    </div>
-    <div style="width:220px;display:flex;flex-direction:column;align-items:flex-start">
-      <div>
-        <div class="bignum" id="numDisplay">0</div>
-        <small id="numExplanation">detected faces</small>
-      </div>
-      <div style="height:8px"></div>
-      <div class="controls">
-        <button id="bleConnectBtn">Connect BLE</button>
-        <button id="bleSendBtn" class="secondary">Send</button>
-      </div>
-      <div style="height:8px"></div>
-      <label><input type="checkbox" id="autoSend"> Auto-send on change</label>
-      <div style="height:8px"></div>
-      <small>Service/Characteristic: <span id="bleInfo">(not connected)</span></small>
-    </div>
+<h2>Face → Metrics → BLE</h2>
+
+<div class="stage card">
+  <div style="flex:1;position:relative">
+    <video id="input_video" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
   </div>
-  <p style="max-width:640px;color:#bbb">This demo captures face landmarks using MediaPipe FaceMesh, displays a number (face count) and can send it to a BLE device using the Web Bluetooth API. Replace the BLE service/characteristic UUIDs to match your peripheral.</p>
 
-  <!-- MediaPipe FaceMesh (prebuilt) and camera utils from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <div style="width:240px;display:flex;flex-direction:column;gap:8px">
+    <div class="controls">
+      <label><input type="checkbox" id="showVideo" checked> Show Video</label>
+      <label><input type="checkbox" id="showLandmarks" checked> Show Landmarks</label>
+    </div>
 
-  <script>
-    // --- UI elements ---
-    const video = document.getElementById('input_video');
-    const canvas = document.getElementById('overlay');
-    const ctx = canvas.getContext('2d');
-    const numDisplay = document.getElementById('numDisplay');
-    const numExplanation = document.getElementById('numExplanation');
-    const bleConnectBtn = document.getElementById('bleConnectBtn');
-    const bleSendBtn = document.getElementById('bleSendBtn');
-    const autoSendCheckbox = document.getElementById('autoSend');
-    const bleInfo = document.getElementById('bleInfo');
+    <div id="metrics">
+      <div class="metric">Mouth openness: <span id="mouthVal">0</span></div>
+      <div class="metric">Left eye openness: <span id="leftEyeVal">0</span></div>
+      <div class="metric">Right eye openness: <span id="rightEyeVal">0</span></div>
+      <div class="metric">Yaw (rotation): <span id="yawVal">0</span></div>
+      <div class="metric">Pitch (tilt): <span id="pitchVal">0</span></div>
+    </div>
 
-    // --- BLE placeholders (change these to match your device) ---
-    // Example: Nordic UART Service (common in BLE demos)
-    const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-    const TX_CHAR_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // write to this char to send data
+    <div class="controls">
+      <button id="bleConnectBtn">Connect BLE</button>
+      <button id="bleSendBtn" class="secondary">Send</button>
+    </div>
+    <label><input type="checkbox" id="autoSend"> Auto-send on change</label>
+    <small id="bleInfo">(not connected)</small>
+  </div>
+</div>
 
-    let bleDevice = null;
-    let bleServer = null;
-    let txCharacteristic = null;
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
-    async function connectBLE() {
-      try {
-        bleDevice = await navigator.bluetooth.requestDevice({
-          // You can use filters to narrow devices. For demo we allow all devices that expose the service.
-          optionalServices: [SERVICE_UUID],
-          acceptAllDevices: true
-        });
-        bleInfo.textContent = 'Connecting...';
-        bleServer = await bleDevice.gatt.connect();
-        const service = await bleServer.getPrimaryService(SERVICE_UUID);
-        txCharacteristic = await service.getCharacteristic(TX_CHAR_UUID);
-        bleInfo.textContent = `${bleDevice.name || 'device'} (connected)`;
-        bleConnectBtn.textContent = 'Disconnect';
-        bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-      } catch (err) {
-        console.error('BLE connect failed', err);
-        alert('BLE connect failed: ' + err.message);
-        bleInfo.textContent = '(not connected)';
-      }
-    }
+<script>
+const video=document.getElementById('input_video');
+const canvas=document.getElementById('overlay');
+const ctx=canvas.getContext('2d');
+const showVideo=document.getElementById('showVideo');
+const showLandmarks=document.getElementById('showLandmarks');
+const bleConnectBtn=document.getElementById('bleConnectBtn');
+const bleSendBtn=document.getElementById('bleSendBtn');
+const autoSend=document.getElementById('autoSend');
+const bleInfo=document.getElementById('bleInfo');
 
-    function onDisconnected() {
-      bleInfo.textContent = '(not connected)';
-      bleConnectBtn.textContent = 'Connect BLE';
-      bleDevice = null; bleServer = null; txCharacteristic = null;
-    }
+const mouthVal=document.getElementById('mouthVal');
+const leftEyeVal=document.getElementById('leftEyeVal');
+const rightEyeVal=document.getElementById('rightEyeVal');
+const yawVal=document.getElementById('yawVal');
+const pitchVal=document.getElementById('pitchVal');
 
-    async function disconnectBLE(){
-      if (bleDevice && bleDevice.gatt.connected) await bleDevice.gatt.disconnect();
-      onDisconnected();
-    }
+let metrics={mouth:0,leftEye:0,rightEye:0,yaw:0,pitch:0};
 
-    async function sendNumberOverBLE(n){
-      if (!txCharacteristic) {
-        alert('Not connected to BLE TX characteristic. Click "Connect BLE" first.');
-        return;
-      }
-      // send as ASCII digits + newline
-      const text = String(n) + '\n';
-      const data = new TextEncoder().encode(text);
-      try {
-        await txCharacteristic.writeValue(data);
-        console.log('sent', text);
-      } catch (err) {
-        console.error('write failed', err);
-      }
-    }
+// BLE UUIDs
+const SERVICE_UUID='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const TX_CHAR_UUID='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+let bleDevice,bleServer,txCharacteristic;
 
-    bleConnectBtn.addEventListener('click', async ()=>{
-      if (bleDevice && bleDevice.gatt.connected) await disconnectBLE();
-      else await connectBLE();
+async function connectBLE(){
+  try{
+    bleDevice=await navigator.bluetooth.requestDevice({
+      acceptAllDevices:true,
+      optionalServices:[SERVICE_UUID]
     });
+    bleInfo.textContent='Connecting...';
+    bleServer=await bleDevice.gatt.connect();
+    const service=await bleServer.getPrimaryService(SERVICE_UUID);
+    txCharacteristic=await service.getCharacteristic(TX_CHAR_UUID);
+    bleInfo.textContent=`${bleDevice.name||'device'} (connected)`;
+    bleConnectBtn.textContent='Disconnect';
+    bleDevice.addEventListener('gattserverdisconnected',onDisconnected);
+  }catch(e){
+    console.error(e);
+    bleInfo.textContent='(not connected)';
+  }
+}
+function onDisconnected(){
+  bleInfo.textContent='(not connected)';
+  bleConnectBtn.textContent='Connect BLE';
+  bleDevice=null;txCharacteristic=null;
+}
+async function disconnectBLE(){
+  if(bleDevice?.gatt.connected) await bleDevice.gatt.disconnect();
+  onDisconnected();
+}
+async function sendMetrics(){
+  if(!txCharacteristic){alert('Not connected');return;}
+  const line=`mouth=${metrics.mouth.toFixed(2)},leftEye=${metrics.leftEye.toFixed(2)},rightEye=${metrics.rightEye.toFixed(2)},yaw=${metrics.yaw.toFixed(1)},pitch=${metrics.pitch.toFixed(1)}\\n`;
+  await txCharacteristic.writeValue(new TextEncoder().encode(line));
+  console.log('sent',line);
+}
 
-    bleSendBtn.addEventListener('click', ()=>{
-      sendNumberOverBLE(currentNumber);
+bleConnectBtn.onclick=async()=>{
+  if(bleDevice?.gatt.connected) await disconnectBLE(); else await connectBLE();
+};
+bleSendBtn.onclick=sendMetrics;
+
+// FaceMesh
+const faceMesh=new FaceMesh({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
+faceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+faceMesh.onResults(onResults);
+
+const camera=new Camera(video,{onFrame:async()=>{await faceMesh.send({image:video});},width:640,height:480});
+camera.start();
+
+let lastSend="";
+
+function onResults(results){
+  canvas.width=video.videoWidth;
+  canvas.height=video.videoHeight;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(!results.multiFaceLandmarks?.length) return;
+  const lm=results.multiFaceLandmarks[0];
+
+  // --- Metric computations ---
+  const mouthTop=lm[13], mouthBottom=lm[14];
+  const leftEyeTop=lm[159], leftEyeBottom=lm[145];
+  const rightEyeTop=lm[386], rightEyeBottom=lm[374];
+  const nose=lm[1], chin=lm[152], leftEar=lm[234], rightEar=lm[454];
+
+  // Distances normalized by face height
+  const faceHeight=Math.hypot(chin.y-nose.y,chin.x-nose.x);
+  metrics.mouth=Math.hypot(mouthTop.y-mouthBottom.y,mouthTop.x-mouthBottom.x)/faceHeight;
+  metrics.leftEye=Math.hypot(leftEyeTop.y-leftEyeBottom.y,leftEyeTop.x-leftEyeBottom.x)/faceHeight;
+  metrics.rightEye=Math.hypot(rightEyeTop.y-rightEyeBottom.y,rightEyeTop.x-rightEyeBottom.x)/faceHeight;
+
+  // Rough yaw & pitch estimation
+  const dx=(rightEar.x-leftEar.x), dy=(nose.y-chin.y);
+  metrics.yaw=dx*180;    // crude yaw
+  metrics.pitch=dy*180;  // crude pitch
+
+  // Update UI
+  mouthVal.textContent=metrics.mouth.toFixed(2);
+  leftEyeVal.textContent=metrics.leftEye.toFixed(2);
+  rightEyeVal.textContent=metrics.rightEye.toFixed(2);
+  yawVal.textContent=metrics.yaw.toFixed(1);
+  pitchVal.textContent=metrics.pitch.toFixed(1);
+
+  // Drawing
+  if(showLandmarks.checked){
+    ctx.strokeStyle='rgba(0,255,255,0.6)';
+    ctx.lineWidth=1.2;
+    ctx.beginPath();
+    lm.forEach((p,i)=>{
+      const x=p.x*canvas.width, y=p.y*canvas.height;
+      ctx.lineTo(x,y);
+      ctx.fillStyle='rgba(0,200,255,0.9)';
+      ctx.fillRect(x-1,y-1,2,2);
     });
+    ctx.stroke();
+  }
 
-    // --- FaceMesh setup ---
-    const faceMesh = new FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
+  if(!showVideo.checked){
+    ctx.globalCompositeOperation='destination-over';
+    ctx.fillStyle='black'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
 
-    faceMesh.setOptions({
-      maxNumFaces: 2,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    faceMesh.onResults(onResults);
-
-    // Use Mediapipe camera utils to feed the video
-    const camera = new Camera(video, {
-      onFrame: async () => {
-        await faceMesh.send({image: video});
-      },
-      width: 640,
-      height: 480
-    });
-    camera.start();
-
-    // --- Processing / drawing ---
-    let currentNumber = 0; // the number we display & send
-
-    function onResults(results){
-      // resize canvas to video size
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-
-      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-        updateNumber(0, 'detected faces');
-        return;
-      }
-
-      // Draw landmarks (simple)
-      for (const landmarks of results.multiFaceLandmarks){
-        // outline
-        ctx.beginPath();
-        for (let i=0;i<landmarks.length;i++){
-          const x = landmarks[i].x * canvas.width;
-          const y = landmarks[i].y * canvas.height;
-          if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-          // small dot
-          ctx.fillStyle = 'rgba(0,200,255,0.9)';
-          ctx.fillRect(x-1.5,y-1.5,3,3);
-        }
-        ctx.strokeStyle = 'rgba(0,200,255,0.6)';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-      }
-
-      // For this demo: set the number to the number of faces detected
-      const faceCount = results.multiFaceLandmarks.length;
-      updateNumber(faceCount, 'detected faces');
-    }
-
-    function updateNumber(n, explanation){
-      // only update & optionally auto-send when changed
-      if (n !== currentNumber) {
-        currentNumber = n;
-        numDisplay.textContent = String(n);
-        numExplanation.textContent = explanation;
-        if (autoSendCheckbox.checked) sendNumberOverBLE(n);
-      }
-    }
-
-    // --- Helpful note for cross-origin and HTTPS ---
-    // Web Bluetooth and getUserMedia require HTTPS (or localhost). Run on https or use localhost for development.
-    // Also make sure your BLE peripheral supports the service/characteristic you set above. Replace the UUID constants if needed.
-
-  </script>
+  const packet=`${metrics.mouth.toFixed(2)},${metrics.leftEye.toFixed(2)},${metrics.rightEye.toFixed(2)},${metrics.yaw.toFixed(1)},${metrics.pitch.toFixed(1)}`;
+  if(autoSend.checked && packet!==lastSend){ lastSend=packet; sendMetrics(); }
+}
+</script>
 </body>
 </html>
