@@ -5,26 +5,73 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Face → Metrics → BLE</title>
 <style>
-  body{font-family:system-ui;margin:0;background:#111;color:#eee;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
-  .stage{position:relative;width:640px;max-width:90vw;height:480px;}
-  video, canvas{width:100%;height:100%;border-radius:12px;background:#000;position:absolute;top:0;left:0;}
-  .card{background:#161616;padding:12px;border-radius:10px;display:flex;gap:12px;align-items:flex-start}
-  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  button{background:#2563eb;border:none;padding:8px 12px;border-radius:8px;color:white;cursor:pointer}
-  button.secondary{background:#2a2a2a}
-  .metric{font-size:14px;color:#ccc}
+  body {
+    font-family: system-ui;
+    margin: 0;
+    background: #111;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 18px;
+  }
+  .stage {
+    position: relative;
+    width: 640px;
+    max-width: 90vw;
+    height: 480px;
+  }
+  video, canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    object-fit: cover;
+  }
+  .card {
+    background: #161616;
+    padding: 12px;
+    border-radius: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    background: #2563eb;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+  }
+  button.secondary {
+    background: #2a2a2a;
+  }
+  .metric {
+    font-size: 14px;
+    color: #ccc;
+  }
 </style>
 </head>
 <body>
 <h2>Face → Metrics → BLE</h2>
 
 <div class="stage card">
-  <div style="flex:1;position:relative;">
+  <div style="flex:1; position:relative;">
     <video id="input_video" autoplay playsinline muted></video>
     <canvas id="overlay"></canvas>
   </div>
 
-  <div style="width:240px;display:flex;flex-direction:column;gap:8px">
+  <div style="width:240px; display:flex; flex-direction:column; gap:8px">
     <div class="controls">
       <label><input type="checkbox" id="showVideo" checked> Show Video</label>
       <label><input type="checkbox" id="showLandmarks" checked> Show Face Mesh</label>
@@ -51,15 +98,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <script>
-const video=document.getElementById('input_video');
-const canvas=document.getElementById('overlay');
-const ctx=canvas.getContext('2d');
-const showVideo=document.getElementById('showVideo');
-const showLandmarks=document.getElementById('showLandmarks');
-const bleConnectBtn=document.getElementById('bleConnectBtn');
-const bleSendBtn=document.getElementById('bleSendBtn');
-const autoSend=document.getElementById('autoSend');
-const bleInfo=document.getElementById('bleInfo');
+const video = document.getElementById('input_video');
+const canvas = document.getElementById('overlay');
+const ctx = canvas.getContext('2d');
+const showVideo = document.getElementById('showVideo');
+const showLandmarks = document.getElementById('showLandmarks');
+const bleConnectBtn = document.getElementById('bleConnectBtn');
+const bleSendBtn = document.getElementById('bleSendBtn');
+const autoSend = document.getElementById('autoSend');
+const bleInfo = document.getElementById('bleInfo');
 
 const mouthVal=document.getElementById('mouthVal');
 const leftEyeVal=document.getElementById('leftEyeVal');
@@ -72,19 +119,22 @@ let metrics={mouth:0,leftEye:0,rightEye:0,yaw:0,pitch:0};
 // BLE UUIDs
 const SERVICE_UUID='6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const TX_CHAR_UUID='6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-let bleDevice,bleServer,txCharacteristic;
+let bleDevice, txCharacteristic;
 
 async function connectBLE(){
-  try{
-    bleDevice=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SERVICE_UUID]});
+  try {
+    bleDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID]
+    });
     bleInfo.textContent='Connecting...';
-    bleServer=await bleDevice.gatt.connect();
-    const service=await bleServer.getPrimaryService(SERVICE_UUID);
-    txCharacteristic=await service.getCharacteristic(TX_CHAR_UUID);
-    bleInfo.textContent=`${bleDevice.name||'device'} (connected)`;
-    bleConnectBtn.textContent='Disconnect';
-    bleDevice.addEventListener('gattserverdisconnected',onDisconnected);
-  }catch(e){
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    txCharacteristic = await service.getCharacteristic(TX_CHAR_UUID);
+    bleInfo.textContent = `${bleDevice.name || 'device'} (connected)`;
+    bleConnectBtn.textContent = 'Disconnect';
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+  } catch (e) {
     console.error(e);
     bleInfo.textContent='(not connected)';
   }
@@ -92,7 +142,7 @@ async function connectBLE(){
 function onDisconnected(){
   bleInfo.textContent='(not connected)';
   bleConnectBtn.textContent='Connect BLE';
-  bleDevice=null;txCharacteristic=null;
+  bleDevice=null; txCharacteristic=null;
 }
 async function disconnectBLE(){
   if(bleDevice?.gatt.connected) await bleDevice.gatt.disconnect();
@@ -100,48 +150,49 @@ async function disconnectBLE(){
 }
 async function sendMetrics(){
   if(!txCharacteristic){alert('Not connected');return;}
-  const line=`mouth=${metrics.mouth.toFixed(2)},leftEye=${metrics.leftEye.toFixed(2)},rightEye=${metrics.rightEye.toFixed(2)},yaw=${metrics.yaw.toFixed(1)},pitch=${metrics.pitch.toFixed(1)}\n`;
+  const line=`mouth=${metrics.mouth.toFixed(2)},leftEye=${metrics.leftEye.toFixed(2)},rightEye=${metrics.rightEye.toFixed(2)},yaw=${metrics.yaw.toFixed(1)},pitch=${metrics.pitch.toFixed(1)}\\n`;
   await txCharacteristic.writeValue(new TextEncoder().encode(line));
-  console.log('sent',line);
+  console.log('sent', line);
 }
-
 bleConnectBtn.onclick=async()=>{if(bleDevice?.gatt.connected) await disconnectBLE(); else await connectBLE();};
 bleSendBtn.onclick=sendMetrics;
 
 // FaceMesh setup
-const faceMesh=new FaceMesh({locateFile:file=>`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
-faceMesh.setOptions({maxNumFaces:1,refineLandmarks:true,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+const faceMesh = new FaceMesh({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+faceMesh.setOptions({ maxNumFaces:1, refineLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
 faceMesh.onResults(onResults);
 
-const camera=new Camera(video,{onFrame:async()=>{await faceMesh.send({image:video});},width:640,height:480});
+const camera = new Camera(video, {
+  onFrame: async () => { await faceMesh.send({image: video}); },
+  width: 640, height: 480
+});
 camera.start();
+
+// Toggle visibility by CSS
+showVideo.addEventListener('change', ()=> video.style.display = showVideo.checked ? 'block' : 'none');
+showLandmarks.addEventListener('change', ()=> canvas.style.display = showLandmarks.checked ? 'block' : 'none');
 
 let lastSend="";
 function onResults(results){
-  canvas.width=video.videoWidth;
-  canvas.height=video.videoHeight;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  if(showVideo.checked){
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  }
-
   if(!results.multiFaceLandmarks?.length) return;
-  const lm=results.multiFaceLandmarks[0];
+  const lm = results.multiFaceLandmarks[0];
 
-  // --- Metric computations ---
+  // Metrics
   const mouthTop=lm[13], mouthBottom=lm[14];
   const leftEyeTop=lm[159], leftEyeBottom=lm[145];
   const rightEyeTop=lm[386], rightEyeBottom=lm[374];
   const nose=lm[1], chin=lm[152], leftEar=lm[234], rightEar=lm[454];
-
   const faceHeight=Math.hypot(chin.y-nose.y,chin.x-nose.x);
+
   metrics.mouth=Math.hypot(mouthTop.y-mouthBottom.y,mouthTop.x-mouthBottom.x)/faceHeight;
   metrics.leftEye=Math.hypot(leftEyeTop.y-leftEyeBottom.y,leftEyeTop.x-leftEyeBottom.x)/faceHeight;
   metrics.rightEye=Math.hypot(rightEyeTop.y-rightEyeBottom.y,rightEyeTop.x-rightEyeBottom.x)/faceHeight;
-  const dx=(rightEar.x-leftEar.x), dy=(nose.y-chin.y);
-  metrics.yaw=dx*180;
-  metrics.pitch=dy*180;
+  metrics.yaw=(rightEar.x-leftEar.x)*180;
+  metrics.pitch=(nose.y-chin.y)*180;
 
   mouthVal.textContent=metrics.mouth.toFixed(2);
   leftEyeVal.textContent=metrics.leftEye.toFixed(2);
@@ -149,12 +200,15 @@ function onResults(results){
   yawVal.textContent=metrics.yaw.toFixed(1);
   pitchVal.textContent=metrics.pitch.toFixed(1);
 
+  // Draw mesh
   if(showLandmarks.checked){
-    ctx.strokeStyle='rgba(0,255,255,0.6)';
-    ctx.lineWidth=1.2;
-    ctx.beginPath();
-    lm.forEach(p=>{const x=p.x*canvas.width, y=p.y*canvas.height;ctx.lineTo(x,y);ctx.fillStyle='rgba(0,200,255,0.9)';ctx.fillRect(x-1,y-1,2,2);});
-    ctx.stroke();
+    ctx.strokeStyle='rgba(0,255,255,0.7)';
+    ctx.lineWidth=1;
+    lm.forEach(p=>{
+      const x=p.x*canvas.width, y=p.y*canvas.height;
+      ctx.fillStyle='rgba(0,200,255,0.9)';
+      ctx.fillRect(x-1,y-1,2,2);
+    });
   }
 
   const packet=`${metrics.mouth.toFixed(2)},${metrics.leftEye.toFixed(2)},${metrics.rightEye.toFixed(2)},${metrics.yaw.toFixed(1)},${metrics.pitch.toFixed(1)}`;
