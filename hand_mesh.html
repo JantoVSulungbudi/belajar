@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hand Mesh Gesture Detection</title>
+  <title>Tangan</title>
   <style>
     body {
       margin: 0;
@@ -39,7 +39,7 @@
   </style>
 </head>
 <body>
-  <h2>Hand Mesh + Gesture Detection</h2>
+  <h2>Deteksi Tangan</h2>
 
   <div class="stage">
     <video id="video" autoplay playsinline muted></video>
@@ -47,11 +47,11 @@
   </div>
 
   <div class="controls">
-    <label><input type="checkbox" id="showVideo" checked /> Show Video</label>
-    <label><input type="checkbox" id="showMesh" checked /> Show Hand Mesh</label>
+    <label><input type="checkbox" id="showVideo" checked />Video</label>
+    <label><input type="checkbox" id="showMesh" checked />Titik referensi tangan</label>
   </div>
 
-  <div class="gesture">Gesture: <span id="gestureName">-</span></div>
+  <div class="gesture">Posisi: <span id="gestureName">-</span></div>
 
   <!-- MediaPipe scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
@@ -110,9 +110,9 @@
       const palmOpen = dist(wrist, middleTip);
 
       // Basic gesture rules
-      if (pinchDist < 0.05) return "Pinch";
-      if (palmOpen > 0.25) return "Open Hand";
-      if (palmOpen < 0.15) return "Fist";
+      if (pinchDist < 0.05) return "Jepit";
+      if (palmOpen > 0.25) return "Terbuka";
+      if (palmOpen < 0.15) return "Tinju";
       return "Unknown";
     }
 
